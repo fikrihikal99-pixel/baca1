@@ -2,64 +2,178 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Pencarian Buku SD</title>
+  <title>Aplikasi Bercerita Buku</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; }
-    h1 { background: #2196F3; color: white; padding: 20px; margin: 0; }
-    input, select, button { font-size: 18px; padding: 10px; margin: 5px; }
-    #hasil { margin-top: 20px; }
+    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 20px; background: #f5f5f5;}
+    h1 { background: #2196F3; color: white; padding: 15px; margin: -20px -20px 20px -20px;}
+    #menu button { margin: 10px; padding: 12px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; background: #4CAF50; color: white; }
+    #menu button:hover { background: #45a049; }
+    #output { margin-top: 20px; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.1);}
+    input { padding: 10px; margin: 10px; width: 250px; border-radius: 6px; border: 1px solid #ccc;}
+    .book-cover { max-width: 150px; margin: 10px auto; display:block; }
+    .history-item { border-bottom: 1px solid #ccc; padding: 10px; }
   </style>
 </head>
 <body>
-  <h1>🔍 Pencarian Buku SD</h1>
-
-  <!-- Menu pencarian -->
-  <div>
-    <input type="text" id="keyword" placeholder="Masukkan kata kunci">
-    <select id="tipeCari">
-      <option value="penulis">Penulis</option>
-      <option value="penerbit">Penerbit</option>
-      <option value="google">Google</option>
-    </select>
-    <button onclick="cariBuku()">Cari</button>
+  <h1>📚 Aplikasi Bercerita Buku</h1>
+  
+  <div id="menu">
+    <button onclick="showScan()">📷 Scan ISBN</button>
+    <button onclick="showManualISBN()">⌨️ Input ISBN Manual</button>
+    <button onclick="showJudulPengarang()">📝 Input Judul & Pengarang</button>
+    <button onclick="showDaftarBuku()">📖 Multi-Buku</button>
+    <button onclick="showHistory()">📜 History</button>
   </div>
 
-  <div id="hasil"></div>
+  <div id="output"></div>
 
   <script>
-    // Data buku contoh
-    const buku = [
-      {judul: "Belajar Matematika", penulis: "Andi", penerbit: "Erlangga"},
-      {judul: "Bahasa Indonesia", penulis: "Budi", penerbit: "Grafindo"},
-      {judul: "Ilmu Pengetahuan Alam", penulis: "Citra", penerbit: "Erlangga"},
-      {judul: "Sejarah Indonesia", penulis: "Dewi", penerbit: "Gramedia"},
-      {judul: "Seni Budaya", penulis: "Eko", penerbit: "Yudhistira"},
-    ];
+    // Kembali ke menu
+    function kembaliMenu() {
+      document.getElementById("menu").style.display = "block";
+      document.getElementById("output").innerHTML = "";
+    }
 
-    function cariBuku() {
-      const keyword = document.getElementById("keyword").value.toLowerCase();
-      const tipe = document.getElementById("tipeCari").value;
-      const hasilDiv = document.getElementById("hasil");
-      hasilDiv.innerHTML = "";
+    // --- Scan ISBN (belum implementasi kamera) ---
+    function showScan() {
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("output").innerHTML = `
+        <h2>Fitur Scan ISBN</h2>
+        <p>📷 Scan kamera belum diaktifkan.</p>
+        <button onclick="kembaliMenu()">🏠 Kembali</button>
+      `;
+    }
 
-      if (tipe === "google") {
-        if(keyword.trim() === "") return alert("Masukkan kata kunci!");
-        window.open("https://www.google.com/search?q=" + encodeURIComponent(keyword), "_blank");
+    // --- Input ISBN manual ---
+    function showManualISBN() {
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("output").innerHTML = `
+        <h2>Masukkan ISBN Buku</h2>
+        <input type="text" id="isbnInput" placeholder="Masukkan ISBN">
+        <button onclick="cariBukuISBN()">Cari & Preview</button>
+        <button onclick="kembaliMenu()">🏠 Kembali</button>
+      `;
+    }
+
+    async function cariBukuISBN() {
+      const isbn = document.getElementById("isbnInput").value.trim();
+      if(!isbn){ alert("Masukkan ISBN!"); return; }
+      document.getElementById("output").innerHTML = "Mencari buku di internet...";
+      try {
+        const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        const data = await response.json();
+        if(data.totalItems > 0){
+          const bukuInfo = data.items[0].volumeInfo;
+          const judul = bukuInfo.title || "Judul tidak tersedia";
+          const pengarang = bukuInfo.authors ? bukuInfo.authors.join(", ") : "Pengarang tidak tersedia";
+          const deskripsi = bukuInfo.description || "Ringkasan buku tidak tersedia.";
+          const cover = bukuInfo.imageLinks ? bukuInfo.imageLinks.thumbnail : "";
+          previewBuku(`${judul} (oleh ${pengarang})`, deskripsi, cover);
+        } else {
+          document.getElementById("output").innerHTML = `Buku tidak ditemukan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+        }
+      } catch(err){
+        document.getElementById("output").innerHTML = `Terjadi kesalahan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+      }
+    }
+
+    // --- Input Judul & Pengarang ---
+    function showJudulPengarang() {
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("output").innerHTML = `
+        <h2>Masukkan Judul & Pengarang Buku</h2>
+        <input type="text" id="judulBuku" placeholder="Judul Buku"><br>
+        <input type="text" id="pengarangBuku" placeholder="Pengarang"><br>
+        <button onclick="cariBukuJudulPengarang()">Cari & Preview</button>
+        <button onclick="kembaliMenu()">🏠 Kembali</button>
+      `;
+    }
+
+    async function cariBukuJudulPengarang() {
+      const judul = document.getElementById("judulBuku").value.trim();
+      const pengarang = document.getElementById("pengarangBuku").value.trim();
+      if(!judul && !pengarang){ alert("Masukkan minimal judul atau pengarang!"); return; }
+      document.getElementById("output").innerHTML = "Mencari buku di internet...";
+      try {
+        const query = `intitle:${encodeURIComponent(judul)}+inauthor:${encodeURIComponent(pengarang)}`;
+        const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}`);
+        const data = await response.json();
+        if(data.totalItems > 0){
+          const bukuInfo = data.items[0].volumeInfo;
+          const j = bukuInfo.title || "Judul tidak tersedia";
+          const p = bukuInfo.authors ? bukuInfo.authors.join(", ") : "Pengarang tidak tersedia";
+          const deskripsi = bukuInfo.description || "Ringkasan buku tidak tersedia.";
+          const cover = bukuInfo.imageLinks ? bukuInfo.imageLinks.thumbnail : "";
+          previewBuku(`${j} (oleh ${p})`, deskripsi, cover);
+        } else {
+          document.getElementById("output").innerHTML = `Buku tidak ditemukan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+        }
+      } catch(err){
+        document.getElementById("output").innerHTML = `Terjadi kesalahan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+      }
+    }
+
+    // --- Multi-Buku (placeholder) ---
+    function showDaftarBuku() {
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("output").innerHTML = `
+        <h2>Fitur Multi-Buku</h2>
+        <p>🚧 Dalam pengembangan 🚧</p>
+        <button onclick="kembaliMenu()">🏠 Kembali</button>
+      `;
+    }
+
+    // --- History ---
+    function saveToHistory(judul, deskripsi, cover) {
+      let history = JSON.parse(localStorage.getItem("bookHistory")) || [];
+      history.unshift({judul, deskripsi, cover});
+      localStorage.setItem("bookHistory", JSON.stringify(history.slice(0,20))); // max 20 buku
+    }
+
+    function showHistory() {
+      document.getElementById("menu").style.display = "none";
+      let history = JSON.parse(localStorage.getItem("bookHistory")) || [];
+      if(history.length === 0) {
+        document.getElementById("output").innerHTML = `
+          <h2>📜 History</h2>
+          <p>Belum ada riwayat buku.</p>
+          <button onclick="kembaliMenu()">🏠 Kembali</button>
+        `;
         return;
       }
+      let html = "<h2>📜 History Buku</h2>";
+      history.forEach((buku, index) => {
+        html += `
+          <div class="history-item">
+            <strong>${buku.judul}</strong><br>
+            ${buku.cover ? `<img src="${buku.cover}" class="book-cover">` : ""}
+            <button onclick='previewBuku(${JSON.stringify(buku.judul)}, ${JSON.stringify(buku.deskripsi)}, ${JSON.stringify(buku.cover)})'>Preview</button>
+          </div>
+        `;
+      });
+      html += `<br><button onclick="kembaliMenu()">🏠 Kembali</button>`;
+      document.getElementById("output").innerHTML = html;
+    }
 
-      // filter buku berdasarkan tipe
-      const hasil = buku.filter(b => b[tipe].toLowerCase().includes(keyword));
-      if (hasil.length === 0) {
-        hasilDiv.innerHTML = "<p>🔍 Tidak ada hasil ditemukan.</p>";
-      } else {
-        let list = "<ul>";
-        hasil.forEach(b => {
-          list += `<li><strong>${b.judul}</strong> - ${b.penulis} (${b.penerbit})</li>`;
-        });
-        list += "</ul>";
-        hasilDiv.innerHTML = list;
-      }
+    // --- Preview buku ---
+    function previewBuku(judul, deskripsi, cover="") {
+      saveToHistory(judul, deskripsi, cover);
+      document.getElementById("output").innerHTML = `
+        <h2>${judul}</h2>
+        ${cover ? `<img src="${cover}" class="book-cover">` : ""}
+        <p>${deskripsi}</p>
+        <button onclick="mulaiBercerita('${judul}')">Mulai Bercerita 🎙️</button><br><br>
+        <button onclick="kembaliMenu()">🏠 Kembali</button>
+      `;
+    }
+
+    // --- Bercerita (dummy) ---
+    function mulaiBercerita(judul) {
+      document.getElementById("output").innerHTML = `
+        <h2>Bercerita tentang: ${judul}</h2>
+        <p>🎙️ (Suara AI membaca isi buku...)</p>
+        <button onclick="kembaliMenu()">🏠 Kembali</button>
+      `;
     }
   </script>
 </body>

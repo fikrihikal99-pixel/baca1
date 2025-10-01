@@ -9,7 +9,7 @@ body { font-family: Arial; text-align: center; padding: 20px; background: #fff8d
 h1 { color: #2e8b57; }
 button { padding: 15px; margin: 8px; font-size: 18px; width: 80%; max-width: 300px; border-radius: 15px; border: none; background-color: #2e8b57; color: white; cursor: pointer; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);}
 button:hover { background-color: #3cb371; }
-input, textarea { width: 80%; padding: 10px; margin: 5px; border-radius: 10px; border: 1px solid #ccc; }
+input, textarea { width: 80%; padding: 10px; margin: 5px; border-radius: 10px; border: 1px solid #ccc; max-width: 400px; }
 #reader { width: 300px; margin: 20px auto; }
 #output { margin-top: 20px; font-size: 18px; }
 #progress { margin-top: 10px; font-weight: bold; color: #d2691e; }
@@ -17,11 +17,12 @@ input, textarea { width: 80%; padding: 10px; margin: 5px; border-radius: 10px; b
 </head>
 <body>
 
-<h1>Perpustakaan AI Online Plus + Tema</h1>
+<h1>📚 Perpustakaan AI Online Plus + Tema</h1>
 
 <div id="menu">
   <button onclick="showScan()">📷 Scan ISBN</button>
   <button onclick="showManualISBN()">⌨️ Input ISBN Manual</button>
+  <button onclick="showJudulPengarang()">📝 Input Judul & Pengarang</button>
   <button onclick="showDaftarBuku()">📖 Multi-Buku</button>
 </div>
 
@@ -34,7 +35,7 @@ input, textarea { width: 80%; padding: 10px; margin: 5px; border-radius: 10px; b
 <script>
 let bukuQueue = [];
 
-// Scan ISBN
+// ------------------- SCAN ISBN -------------------
 function showScan() {
   document.getElementById("menu").style.display = "none";
   document.getElementById("output").innerHTML = "Membuka kamera untuk scan barcode...";
@@ -51,7 +52,7 @@ function showScan() {
   );
 }
 
-// Input ISBN manual
+// ------------------- INPUT ISBN MANUAL -------------------
 function showManualISBN() {
   document.getElementById("menu").style.display = "none";
   document.getElementById("output").innerHTML = `
@@ -68,17 +69,35 @@ function cariBukuManual() {
   cariBukuOnline(isbn);
 }
 
-// Cari buku online via Google Books API
-async function cariBukuOnline(isbn) {
+// ------------------- INPUT JUDUL & PENGARANG -------------------
+function showJudulPengarang() {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("output").innerHTML = `
+    <h2>Masukkan Judul & Pengarang Buku</h2>
+    <input type="text" id="judulBuku" placeholder="Judul Buku"><br>
+    <input type="text" id="pengarangBuku" placeholder="Pengarang"><br>
+    <button onclick="cariBukuJudulPengarang()">Cari & Preview</button>
+    <button onclick="kembaliMenu()">🏠 Kembali</button>
+  `;
+}
+
+async function cariBukuJudulPengarang() {
+  const judul = document.getElementById("judulBuku").value.trim();
+  const pengarang = document.getElementById("pengarangBuku").value.trim();
+  if(!judul && !pengarang){ alert("Masukkan minimal judul atau pengarang!"); return; }
+
   document.getElementById("output").innerHTML = "Mencari buku di internet...";
   try {
-    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const query = `intitle:${encodeURIComponent(judul)}+inauthor:${encodeURIComponent(pengarang)}`;
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}`);
     const data = await response.json();
+
     if(data.totalItems > 0){
       const bukuInfo = data.items[0].volumeInfo;
-      const judul = bukuInfo.title || "Judul tidak tersedia";
+      const j = bukuInfo.title || "Judul tidak tersedia";
+      const p = bukuInfo.authors ? bukuInfo.authors.join(", ") : "Pengarang tidak tersedia";
       const deskripsi = bukuInfo.description || "Ringkasan buku tidak tersedia, AI akan menceritakan secara umum.";
-      previewBuku(judul, deskripsi);
+      previewBuku(`${j} (oleh ${p})`, deskripsi);
     } else {
       document.getElementById("output").innerHTML = `Buku tidak ditemukan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
     }
@@ -88,7 +107,28 @@ async function cariBukuOnline(isbn) {
   }
 }
 
-// Preview buku
+// ------------------- CARI BUKU DARI ISBN -------------------
+async function cariBukuOnline(isbn) {
+  document.getElementById("output").innerHTML = "Mencari buku di internet...";
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const data = await response.json();
+    if(data.totalItems > 0){
+      const bukuInfo = data.items[0].volumeInfo;
+      const judul = bukuInfo.title || "Judul tidak tersedia";
+      const pengarang = bukuInfo.authors ? bukuInfo.authors.join(", ") : "Pengarang tidak tersedia";
+      const deskripsi = bukuInfo.description || "Ringkasan buku tidak tersedia, AI akan menceritakan secara umum.";
+      previewBuku(`${judul} (oleh ${pengarang})`, deskripsi);
+    } else {
+      document.getElementById("output").innerHTML = `Buku tidak ditemukan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+    }
+  } catch(err){
+    document.getElementById("output").innerHTML = `Terjadi kesalahan saat mencari buku.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+    console.error(err);
+  }
+}
+
+// ------------------- PREVIEW & CERITA -------------------
 function previewBuku(judul, ringkasan) {
   document.getElementById("output").innerHTML = `
     <h2>${judul}</h2>
@@ -98,7 +138,6 @@ function previewBuku(judul, ringkasan) {
   `;
 }
 
-// Tentukan efek suara berdasarkan tema
 function pilihEfekSuara(ringkasan){
   let audioUrl = "";
   const text = ringkasan.toLowerCase();
@@ -108,8 +147,8 @@ function pilihEfekSuara(ringkasan){
   return audioUrl;
 }
 
-// Mulai bercerita dengan efek suara
 function mulaiBercerita(judul, ringkasan) {
+  speechSynthesis.cancel();
   document.getElementById("output").innerHTML = `<h2>${judul}</h2><p>Buku sedang dibacakan...</p><button onclick="kembaliMenu()">🏠 Kembali</button>`;
   
   // Musik latar umum
@@ -140,7 +179,7 @@ function mulaiBercerita(judul, ringkasan) {
   speechSynthesis.speak(utter);
 }
 
-// Multi-buku
+// ------------------- MULTI BUKU -------------------
 function showDaftarBuku() {
   document.getElementById("menu").style.display="none";
   bukuQueue = [];
@@ -176,13 +215,15 @@ async function cariBukuOnlineMulti(isbn, callback) {
     if(data.totalItems > 0){
       const info = data.items[0].volumeInfo;
       const judul = info.title || "Judul tidak tersedia";
+      const pengarang = info.authors ? info.authors.join(", ") : "Pengarang tidak tersedia";
       const deskripsi = info.description || "Ringkasan buku tidak tersedia, AI akan menceritakan secara umum.";
-      mulaiBerceritaMulti(judul, deskripsi, callback);
+      mulaiBerceritaMulti(`${judul} (oleh ${pengarang})`, deskripsi, callback);
     } else { callback(); }
   } catch(err){ console.error(err); callback(); }
 }
 
 function mulaiBerceritaMulti(judul, ringkasan, callback){
+  speechSynthesis.cancel();
   const efekUrl = pilihEfekSuara(ringkasan);
   let efekAudio;
   if(efekUrl){
@@ -202,8 +243,9 @@ function mulaiBerceritaMulti(judul, ringkasan, callback){
   speechSynthesis.speak(utter);
 }
 
-// Kembali ke menu
+// ------------------- KEMBALI KE MENU -------------------
 function kembaliMenu() {
+  speechSynthesis.cancel();
   document.getElementById("menu").style.display = "block";
   document.getElementById("output").innerHTML = "";
   document.getElementById("reader").innerHTML = "";

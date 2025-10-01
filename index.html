@@ -1,1 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Absensi SD</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0;}
+    h1 { background: #2196F3; color: white; padding: 20px; margin: 0;}
+    .menu, .absensi { display: none; }
+    .active { display: block; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      padding: 20px;
+    }
+    button {
+      font-size: 22px;
+      padding: 30px;
+      border-radius: 15px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button.hadir { background: gray; }
+    .kelasBtn {
+      font-size: 24px;
+      padding: 40px;
+      background: #FF9800;
+    }
+    #download, #back {
+      margin: 15px;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 10px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #back { background: #f44336; }
+    #voiceSelect {
+      margin: 15px;
+      font-size: 16px;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📚 Daftar Hadir SD</h1>
 
+  <!-- MENU UTAMA -->
+  <div class="menu active" id="menuUtama">
+    <h2>Pilih Kelas</h2>
+    <label for="voiceSelect">🔊 Pilih Suara:</label>
+    <select id="voiceSelect"></select>
+    <div class="grid">
+      <button class="kelasBtn" onclick="pilihKelas(1)">Kelas 1</button>
+      <button class="kelasBtn" onclick="pilihKelas(2)">Kelas 2</button>
+      <button class="kelasBtn" onclick="pilihKelas(3)">Kelas 3</button>
+      <button class="kelasBtn" onclick="pilihKelas(4)">Kelas 4</button>
+      <button class="kelasBtn" onclick="pilihKelas(5)">Kelas 5</button>
+      <button class="kelasBtn" onclick="pilihKelas(6)">Kelas 6</button>
+    </div>
+  </div>
+
+  <!-- HALAMAN ABSENSI -->
+  <div class="absensi" id="halamanAbsensi">
+    <h2 id="judulKelas">Absensi</h2>
+    <div class="grid" id="daftarSiswa"></div>
+    <button id="download">⬇️ Download Rekap Excel</button>
+    <button id="back" onclick="kembali()">⬅️ Kembali ke Menu</button>
+  </div>
+
+  <script>
+    // Data siswa per kelas
+    const dataKelas = {
+      1: ["Adi", "Bima", "Cici", "Dina", "Eka"],
+      2: ["Fajar", "Gina", "Hana", "Indra", "Joko"],
+      3: ["Kiki", "Lina", "Made", "Nina", "Omar"],
+      4: ["Putri", "Qori", "Raka", "Sari", "Tono"],
+      5: ["Andi", "Budi", "Citra", "Dewi", "Eko", "Farah"],
+      6: ["Umar", "Vina", "Wawan", "Xena", "Yusuf", "Zahra"]
+    };
+
+    let kelasAktif = null;
+    let selectedVoice = null;
+
+    // 🔹 Buat key harian otomatis
+    function getKey(noKelas) {
+      let today = new Date().toLocaleDateString("id-ID");
+      return "absensi_kelas_" + noKelas + "_" + today;
+    }
+
+    // 🔹 Load suara
+    function loadVoices() {
+      let voices = speechSynthesis.getVoices();
+      let voiceSelect = document.getElementById("voiceSelect");
+      voiceSelect.innerHTML = "";
+      voices.forEach((voice, i) => {
+        let option = document.createElement("option");
+        option.value = i;
+        option.textContent = voice.name + " (" + voice.lang + ")";
+        if (voice.lang === "id-ID") option.selected = true;
+        voiceSelect.appendChild(option);
+      });
+      voiceSelect.onchange = () => {
+        selectedVoice = voices[voiceSelect.value];
+      };
+      selectedVoice = voices[voiceSelect.value];
+    }
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    // 🔹 Fungsi bicara
+    function playSound(teks) {
+      let speech = new SpeechSynthesisUtterance(teks);
+      if (selectedVoice) speech.voice = selectedVoice;
+      speech.lang = selectedVoice?.lang || "id-ID";
+      window.speechSynthesis.speak(speech);
+    }
+
+    // 🔹 Pilih kelas
+    function pilihKelas(noKelas) {
+      kelasAktif = noKelas;
+      document.getElementById("menuUtama").classList.remove("active");
+      document.getElementById("halamanAbsensi").classList.add("active");
+      document.getElementById("judulKelas").innerText = "📖 Daftar Hadir Kelas " + noKelas;
+
+      const daftarDiv = document.getElementById("daftarSiswa");
+      daftarDiv.innerHTML = "";
+
+      const siswa = dataKelas[noKelas];
+      const key = getKey(noKelas);
+      let absensi = JSON.parse(localStorage.getItem(key)) || [];
+
+      siswa.forEach(nama => {
+        const btn = document.createElement("button");
+        let sudahHadir = absensi.some(item => item.nama === nama);
+        btn.innerText = sudahHadir ? nama + " ✅" : nama;
+        if (sudahHadir) btn.classList.add("hadir");
+
+        btn.onclick = () => {
+          if (!btn.classList.contains("hadir")) {
+            btn.classList.add("hadir");
+            btn.innerText = nama + " ✅";
+            playSound(nama + " hadir");
+            if (!absensi.some(item => item.nama === nama)) {
+              absensi.push({nama: nama, waktu: new Date().toLocaleString("id-ID")});
+              localStorage.setItem(key, JSON.stringify(absensi));
+            }
+          }
+        };
+        daftarDiv.appendChild(btn);
+      });
+    }
+
+    // 🔹 Kembali ke menu utama
+    function kembali() {
+      document.getElementById("menuUtama").classList.add("active");
+      document.getElementById("halamanAbsensi").classList.remove("active");
+    }
+
+    // 🔹 Download Excel/CSV hadir & tidak hadir
+    document.getElementById("download").onclick = () => {
+      if (!kelasAktif) return;
+      let key = getKey(kelasAktif);
+      let absensi = JSON.parse(localStorage.getItem(key)) || [];
+
+      let siswa = dataKelas[kelasAktif];
+      if (siswa.length === 0) {
+        alert("Data siswa kosong!");
+        return;
+      }
+
+      let csv = "Nama,Status,Waktu Hadir\n";
+      siswa.forEach(nama => {
+        let record = absensi.find(item => item.nama === nama);
+        if (record) {
+          csv += `${nama},Hadir,${record.waktu}\n`;
+        } else {
+          csv += `${nama},Tidak Hadir,-\n`;
+        }
+      });
+
+      let blob = new Blob([csv], { type: "text/csv" });
+      let link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `rekap_kelas_${kelasAktif}_${new Date().toLocaleDateString("id-ID")}.csv`;
+      link.click();
+    };
+  </script>
+</body>
+</html>

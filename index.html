@@ -1,194 +1,215 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Absensi SD</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0;}
-    h1 { background: #2196F3; color: white; padding: 20px; margin: 0;}
-    .menu, .absensi { display: none; }
-    .active { display: block; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-      padding: 20px;
-    }
-    button {
-      font-size: 22px;
-      padding: 30px;
-      border-radius: 15px;
-      border: none;
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button.hadir { background: gray; }
-    .kelasBtn {
-      font-size: 24px;
-      padding: 40px;
-      background: #FF9800;
-    }
-    #download, #back {
-      margin: 15px;
-      padding: 15px 30px;
-      font-size: 18px;
-      border-radius: 10px;
-      background: #2196F3;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    #back { background: #f44336; }
-    #voiceSelect {
-      margin: 15px;
-      font-size: 16px;
-      padding: 8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perpustakaan AI Online Plus Tema</title>
+<style>
+body { font-family: Arial; text-align: center; padding: 20px; background: #fff8dc; }
+h1 { color: #2e8b57; }
+button { padding: 15px; margin: 8px; font-size: 18px; width: 80%; max-width: 300px; border-radius: 15px; border: none; background-color: #2e8b57; color: white; cursor: pointer; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);}
+button:hover { background-color: #3cb371; }
+input, textarea { width: 80%; padding: 10px; margin: 5px; border-radius: 10px; border: 1px solid #ccc; }
+#reader { width: 300px; margin: 20px auto; }
+#output { margin-top: 20px; font-size: 18px; }
+#progress { margin-top: 10px; font-weight: bold; color: #d2691e; }
+</style>
 </head>
 <body>
-  <h1>📚 Daftar Hadir SD</h1>
 
-  <!-- MENU UTAMA -->
-  <div class="menu active" id="menuUtama">
-    <h2>Pilih Kelas</h2>
-    <label for="voiceSelect">🔊 Pilih Suara:</label>
-    <select id="voiceSelect"></select>
-    <div class="grid">
-      <button class="kelasBtn" onclick="pilihKelas(1)">Kelas 1</button>
-      <button class="kelasBtn" onclick="pilihKelas(2)">Kelas 2</button>
-      <button class="kelasBtn" onclick="pilihKelas(3)">Kelas 3</button>
-      <button class="kelasBtn" onclick="pilihKelas(4)">Kelas 4</button>
-      <button class="kelasBtn" onclick="pilihKelas(5)">Kelas 5</button>
-      <button class="kelasBtn" onclick="pilihKelas(6)">Kelas 6</button>
-    </div>
-  </div>
+<h1>Perpustakaan AI Online Plus + Tema</h1>
 
-  <!-- HALAMAN ABSENSI -->
-  <div class="absensi" id="halamanAbsensi">
-    <h2 id="judulKelas">Absensi</h2>
-    <div class="grid" id="daftarSiswa"></div>
-    <button id="download">⬇️ Download Rekap Excel</button>
-    <button id="back" onclick="kembali()">⬅️ Kembali ke Menu</button>
-  </div>
+<div id="menu">
+  <button onclick="showScan()">📷 Scan ISBN</button>
+  <button onclick="showManualISBN()">⌨️ Input ISBN Manual</button>
+  <button onclick="showDaftarBuku()">📖 Multi-Buku</button>
+</div>
 
-  <script>
-    // Data siswa per kelas
-    const dataKelas = {
-      1: ["Adi", "Bima", "Cici", "Dina", "Eka"],
-      2: ["Fajar", "Gina", "Hana", "Indra", "Joko"],
-      3: ["Kiki", "Lina", "Made", "Nina", "Omar"],
-      4: ["Putri", "Qori", "Raka", "Sari", "Tono"],
-      5: ["Andi", "Budi", "Citra", "Dewi", "Eko", "Farah"],
-      6: ["Umar", "Vina", "Wawan", "Xena", "Yusuf", "Zahra"]
-    };
+<div id="reader"></div>
+<div id="output"></div>
+<div id="progress"></div>
 
-    let kelasAktif = null;
-    let selectedVoice = null;
+<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
 
-    // 🔹 Buat key harian otomatis
-    function getKey(noKelas) {
-      let today = new Date().toLocaleDateString("id-ID");
-      return "absensi_kelas_" + noKelas + "_" + today;
+<script>
+let bukuQueue = [];
+
+// Scan ISBN
+function showScan() {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("output").innerHTML = "Membuka kamera untuk scan barcode...";
+  const html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    (decodedText) => {
+      html5QrCode.stop();
+      document.getElementById("reader").innerHTML = "";
+      cariBukuOnline(decodedText);
+    },
+    (errorMessage) => {}
+  );
+}
+
+// Input ISBN manual
+function showManualISBN() {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("output").innerHTML = `
+    <h2>Masukkan ISBN Buku</h2>
+    <input type="text" id="isbnManual" placeholder="Contoh: 9781234567890"><br>
+    <button onclick="cariBukuManual()">Cari & Preview</button>
+    <button onclick="kembaliMenu()">🏠 Kembali</button>
+  `;
+}
+
+function cariBukuManual() {
+  const isbn = document.getElementById("isbnManual").value.trim();
+  if(!isbn){ alert("Masukkan ISBN!"); return; }
+  cariBukuOnline(isbn);
+}
+
+// Cari buku online via Google Books API
+async function cariBukuOnline(isbn) {
+  document.getElementById("output").innerHTML = "Mencari buku di internet...";
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const data = await response.json();
+    if(data.totalItems > 0){
+      const bukuInfo = data.items[0].volumeInfo;
+      const judul = bukuInfo.title || "Judul tidak tersedia";
+      const deskripsi = bukuInfo.description || "Ringkasan buku tidak tersedia, AI akan menceritakan secara umum.";
+      previewBuku(judul, deskripsi);
+    } else {
+      document.getElementById("output").innerHTML = `Buku tidak ditemukan.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
     }
+  } catch(err){
+    document.getElementById("output").innerHTML = `Terjadi kesalahan saat mencari buku.<br><button onclick='kembaliMenu()'>🏠 Kembali</button>`;
+    console.error(err);
+  }
+}
 
-    // 🔹 Load suara
-    function loadVoices() {
-      let voices = speechSynthesis.getVoices();
-      let voiceSelect = document.getElementById("voiceSelect");
-      voiceSelect.innerHTML = "";
-      voices.forEach((voice, i) => {
-        let option = document.createElement("option");
-        option.value = i;
-        option.textContent = voice.name + " (" + voice.lang + ")";
-        if (voice.lang === "id-ID") option.selected = true;
-        voiceSelect.appendChild(option);
-      });
-      voiceSelect.onchange = () => {
-        selectedVoice = voices[voiceSelect.value];
-      };
-      selectedVoice = voices[voiceSelect.value];
-    }
-    speechSynthesis.onvoiceschanged = loadVoices;
+// Preview buku
+function previewBuku(judul, ringkasan) {
+  document.getElementById("output").innerHTML = `
+    <h2>${judul}</h2>
+    <p>${ringkasan}</p>
+    <button onclick="mulaiBercerita('${judul}', \`${ringkasan}\`)">▶️ Mulai Bercerita</button>
+    <button onclick="kembaliMenu()">🏠 Kembali</button>
+  `;
+}
 
-    // 🔹 Fungsi bicara
-    function playSound(teks) {
-      let speech = new SpeechSynthesisUtterance(teks);
-      if (selectedVoice) speech.voice = selectedVoice;
-      speech.lang = selectedVoice?.lang || "id-ID";
-      window.speechSynthesis.speak(speech);
-    }
+// Tentukan efek suara berdasarkan tema
+function pilihEfekSuara(ringkasan){
+  let audioUrl = "";
+  const text = ringkasan.toLowerCase();
+  if(text.includes("binatang")) audioUrl = "https://www.soundjay.com/nature/sounds/birds-1.mp3";
+  else if(text.includes("petualangan") || text.includes("perjalanan")) audioUrl = "https://www.soundjay.com/nature/sounds/wind-01.mp3";
+  else if(text.includes("cerita rakyat") || text.includes("dongeng")) audioUrl = "https://www.soundjay.com/nature/sounds/water-flow-1.mp3";
+  return audioUrl;
+}
 
-    // 🔹 Pilih kelas
-    function pilihKelas(noKelas) {
-      kelasAktif = noKelas;
-      document.getElementById("menuUtama").classList.remove("active");
-      document.getElementById("halamanAbsensi").classList.add("active");
-      document.getElementById("judulKelas").innerText = "📖 Daftar Hadir Kelas " + noKelas;
+// Mulai bercerita dengan efek suara
+function mulaiBercerita(judul, ringkasan) {
+  document.getElementById("output").innerHTML = `<h2>${judul}</h2><p>Buku sedang dibacakan...</p><button onclick="kembaliMenu()">🏠 Kembali</button>`;
+  
+  // Musik latar umum
+  const musik = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+  musik.volume = 0.15;
+  musik.loop = true;
+  musik.play();
+  
+  // Efek suara tema
+  const efekUrl = pilihEfekSuara(ringkasan);
+  let efekAudio;
+  if(efekUrl){
+    efekAudio = new Audio(efekUrl);
+    efekAudio.volume = 0.2;
+    efekAudio.loop = false;
+    efekAudio.play();
+  }
 
-      const daftarDiv = document.getElementById("daftarSiswa");
-      daftarDiv.innerHTML = "";
+  // Text-to-Speech
+  const utter = new SpeechSynthesisUtterance(ringkasan);
+  utter.lang = 'id-ID';
+  utter.rate = 0.9;
+  utter.pitch = 1.2;
+  utter.onend = ()=>{
+    musik.pause(); musik.currentTime = 0;
+    if(efekAudio) { efekAudio.pause(); efekAudio.currentTime = 0; }
+  };
+  speechSynthesis.speak(utter);
+}
 
-      const siswa = dataKelas[noKelas];
-      const key = getKey(noKelas);
-      let absensi = JSON.parse(localStorage.getItem(key)) || [];
+// Multi-buku
+function showDaftarBuku() {
+  document.getElementById("menu").style.display="none";
+  bukuQueue = [];
+  document.getElementById("output").innerHTML = `
+    <h2>Masukkan ISBN Buku</h2>
+    <textarea id="isbnList" placeholder="Masukkan beberapa ISBN, satu per baris"></textarea><br>
+    <button onclick="tambahQueue()">Tambahkan & Bercerita</button>
+    <button onclick="kembaliMenu()">🏠 Kembali</button>
+  `;
+}
 
-      siswa.forEach(nama => {
-        const btn = document.createElement("button");
-        let sudahHadir = absensi.some(item => item.nama === nama);
-        btn.innerText = sudahHadir ? nama + " ✅" : nama;
-        if (sudahHadir) btn.classList.add("hadir");
+function tambahQueue() {
+  const list = document.getElementById("isbnList").value.trim().split("\n").map(l=>l.trim()).filter(l=>l);
+  if(list.length===0){ alert("Masukkan minimal satu ISBN!"); return; }
+  bukuQueue = list;
+  bacaQueue(0);
+}
 
-        btn.onclick = () => {
-          if (!btn.classList.contains("hadir")) {
-            btn.classList.add("hadir");
-            btn.innerText = nama + " ✅";
-            playSound(nama + " hadir");
-            if (!absensi.some(item => item.nama === nama)) {
-              absensi.push({nama: nama, waktu: new Date().toLocaleString("id-ID")});
-              localStorage.setItem(key, JSON.stringify(absensi));
-            }
-          }
-        };
-        daftarDiv.appendChild(btn);
-      });
-    }
+function bacaQueue(index) {
+  if(index >= bukuQueue.length){
+    document.getElementById("progress").innerText = "Selesai membaca semua buku!";
+    return;
+  }
+  const isbn = bukuQueue[index];
+  document.getElementById("progress").innerText = `Sedang membaca buku ${index+1} dari ${bukuQueue.length}`;
+  cariBukuOnlineMulti(isbn, ()=>bacaQueue(index+1));
+}
 
-    // 🔹 Kembali ke menu utama
-    function kembali() {
-      document.getElementById("menuUtama").classList.add("active");
-      document.getElementById("halamanAbsensi").classList.remove("active");
-    }
+async function cariBukuOnlineMulti(isbn, callback) {
+  try {
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const data = await response.json();
+    if(data.totalItems > 0){
+      const info = data.items[0].volumeInfo;
+      const judul = info.title || "Judul tidak tersedia";
+      const deskripsi = info.description || "Ringkasan buku tidak tersedia, AI akan menceritakan secara umum.";
+      mulaiBerceritaMulti(judul, deskripsi, callback);
+    } else { callback(); }
+  } catch(err){ console.error(err); callback(); }
+}
 
-    // 🔹 Download Excel/CSV hadir & tidak hadir
-    document.getElementById("download").onclick = () => {
-      if (!kelasAktif) return;
-      let key = getKey(kelasAktif);
-      let absensi = JSON.parse(localStorage.getItem(key)) || [];
+function mulaiBerceritaMulti(judul, ringkasan, callback){
+  const efekUrl = pilihEfekSuara(ringkasan);
+  let efekAudio;
+  if(efekUrl){
+    efekAudio = new Audio(efekUrl);
+    efekAudio.volume = 0.2;
+    efekAudio.loop = false;
+    efekAudio.play();
+  }
+  const utter = new SpeechSynthesisUtterance(ringkasan);
+  utter.lang = 'id-ID';
+  utter.rate = 0.9;
+  utter.pitch = 1.2;
+  utter.onend = ()=>{
+    if(efekAudio) { efekAudio.pause(); efekAudio.currentTime = 0; }
+    callback();
+  };
+  speechSynthesis.speak(utter);
+}
 
-      let siswa = dataKelas[kelasAktif];
-      if (siswa.length === 0) {
-        alert("Data siswa kosong!");
-        return;
-      }
+// Kembali ke menu
+function kembaliMenu() {
+  document.getElementById("menu").style.display = "block";
+  document.getElementById("output").innerHTML = "";
+  document.getElementById("reader").innerHTML = "";
+  document.getElementById("progress").innerText = "";
+}
+</script>
 
-      let csv = "Nama,Status,Waktu Hadir\n";
-      siswa.forEach(nama => {
-        let record = absensi.find(item => item.nama === nama);
-        if (record) {
-          csv += `${nama},Hadir,${record.waktu}\n`;
-        } else {
-          csv += `${nama},Tidak Hadir,-\n`;
-        }
-      });
-
-      let blob = new Blob([csv], { type: "text/csv" });
-      let link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `rekap_kelas_${kelasAktif}_${new Date().toLocaleDateString("id-ID")}.csv`;
-      link.click();
-    };
-  </script>
 </body>
 </html>
